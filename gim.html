@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Game Bunga</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(to bottom right, #ffe6f0, #fddde6);
+      font-family: 'Segoe UI', sans-serif;
+      color: #a64d79;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.8em;
+      margin-bottom: 20px;
+    }
+
+    #levelInfo {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+    }
+
+    #timer {
+      font-size: 1.5em;
+      margin-bottom: 20px;
+    }
+
+    .game-board {
+      display: grid;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .card {
+      width: 100px;
+      height: 100px;
+      background-color: #fff0f5;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      cursor: pointer;
+      font-size: 2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: transparent;
+      transition: transform 0.6s ease, opacity 0.6s ease;
+    }
+
+    .card.flipped {
+      background-color: #ffcce0;
+      color: #a64d79;
+    }
+
+    .card.wrong {
+      animation: spinOnceZ 0.6s ease;
+    }
+
+    @keyframes spinOnceZ {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .card.matched {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+
+    #nextLevelBtn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      background-color: #ffb3d9;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #a64d79;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌸 Tebak-Tebakan Bunga 🌸</h1>
+  <div id="levelInfo">Level: 1</div>
+  <div id="timer">Sisa waktu: 60 detik</div>
+  <div class="game-board" id="gameBoard"></div>
+  <button id="nextLevelBtn" style="display:none;">Naik ke Level Berikutnya</button>
+
+  <script>
+    let level = 1;
+    let timeLimit = 60;
+    let timerInterval;
+    let flippedCards = [];
+    let matchedCards = [];
+
+    function shuffle(array) {
+      return array.sort(() => Math.random() - 0.5);
+    }
+
+    function generateCards(level) {
+      const symbols = ['🌹', '🌸', '🌻', '🌼', '🌷', '🌺', '💐', '🥀', '🌾', '🌱', '🍀', '🌿', '🍃', '🪷', '🪻'];
+      let pairCount;
+
+      if (level <= 5) {
+        pairCount = 3 + level;
+      } else if (level <= 10) {
+        pairCount = 7 + (level - 5);
+      } else {
+        pairCount = 11 + (level - 10);
+      }
+
+      const selected = shuffle(symbols).slice(0, pairCount);
+      return shuffle([...selected, ...selected]);
+    }
+
+    function createBoard() {
+      const board = document.getElementById('gameBoard');
+      board.innerHTML = '';
+      flippedCards = [];
+      matchedCards = [];
+
+      const cards = generateCards(level);
+      const columns = Math.ceil(Math.sqrt(cards.length));
+      board.style.gridTemplateColumns = `repeat(${columns}, 100px)`;
+
+      cards.forEach((symbol, index) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.symbol = symbol;
+        card.dataset.index = index;
+        card.innerText = symbol;
+        card.addEventListener('click', flipCard);
+        board.appendChild(card);
+      });
+
+      document.getElementById('levelInfo').textContent = 'Level: ' + level;
+
+      if (level <= 5) {
+        timeLimit = 60 - (level - 1) * 3;
+      } else if (level <= 10) {
+        timeLimit = 45 - (level - 6) * 4;
+      } else {
+        timeLimit = Math.max(10, 25 - (level - 11) * 3);
+      }
+
+      document.getElementById('timer').textContent = 'Sisa waktu: ' + timeLimit + ' detik';
+      startTimer();
+    }
+
+    function flipCard() {
+      if (flippedCards.length === 2 || this.classList.contains('flipped')) return;
+
+      this.classList.add('flipped');
+      flippedCards.push(this);
+
+      if (flippedCards.length === 2) {
+        const [card1, card2] = flippedCards;
+        if (card1.dataset.symbol === card2.dataset.symbol) {
+          card1.classList.add('matched');
+          card2.classList.add('matched');
+          matchedCards.push(card1, card2);
+          flippedCards = [];
+          if (matchedCards.length === document.querySelectorAll('.card').length) {
+            clearInterval(timerInterval);
+            document.getElementById('nextLevelBtn').style.display = 'inline-block';
+          }
+        } else {
+          card1.classList.add('wrong');
+          card2.classList.add('wrong');
+          setTimeout(() => {
+            card1.classList.remove('flipped', 'wrong');
+            card2.classList.remove('flipped', 'wrong');
+            flippedCards = [];
+          }, 800);
+        }
+      }
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      let timeLeft = timeLimit;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer').textContent = 'Sisa waktu: ' + timeLeft + ' detik';
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          alert('Waktu habis! Coba lagi yaa 💫');
+          level = 1;
+          document.getElementById('nextLevelBtn').style.display = 'none';
+          createBoard();
+        }
+      }, 1000);
+    }
+
+    document.getElementById('nextLevelBtn').addEventListener('click', () => {
+      level++;
+      document.getElementById('nextLevelBtn').style.display = 'none';
+      createBoard();
+    });
+
+    createBoard();
+  </script>
+</body>
+</html>
